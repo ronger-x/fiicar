@@ -2,6 +2,7 @@
 // #define PRO_SERVO_CONTROL
 #include <Arduino.h>
 #include <PS2X_lib.h>
+#include <ESP32MotorControl.h>
 
 #define SERVICE_UUID "76ad7aaa-3782-11ed-a261-0242ac120002"
 
@@ -22,9 +23,22 @@
 #define pressures false
 #define rumble false
 
+#define initialSpeed 100
+#define turnSpeed 50
+
+ESP32MotorControl leftFrontMotorControl = ESP32MotorControl();
+ESP32MotorControl rightFrontMotorControl = ESP32MotorControl();
+ESP32MotorControl leftRearMotorControl = ESP32MotorControl();
+ESP32MotorControl rightRearMotorControl = ESP32MotorControl();
 PS2X ps2x; // khởi tạo class PS2x
 
 void runCar();
+
+void turnLeft();
+
+void turnRight();
+
+void reverseCar();
 
 void stopCar();
 
@@ -32,6 +46,7 @@ void initCar();
 
 void initPS2();
 
+void runCar(uint8_t x, uint8_t y);
 
 void setup() {
     Serial.begin(115200);
@@ -49,7 +64,7 @@ void setup() {
 void loop() {
 // check if a peripheral has been discovered
     ps2x.read_gamepad(false, false); // gọi hàm để đọc tay điều khiển
-
+    bool run = false;
     // các trả về giá trị TRUE (1) khi nút được giữ
     if (ps2x.Button(PSB_START)) { // nếu nút Start được giữ, in ra Serial monitor
         Serial.println("Start is being held");
@@ -60,53 +75,44 @@ void loop() {
         Serial.print("Up held this hard: ");
         Serial.println(ps2x.Analog(PSAB_PAD_UP),
                        DEC); // đọc giá trị analog ở nút này, xem nút này được bấm mạnh hay nhẹ
-                       runCar();
+        runCar();
+        run = true;
     }
     if (ps2x.Button(PSB_PAD_RIGHT)) {
         Serial.print("Right held this hard: ");
         Serial.println(ps2x.Analog(PSAB_PAD_RIGHT), DEC);
+        turnRight();
+        run = true;
     }
     if (ps2x.Button(PSB_PAD_LEFT)) {
         Serial.print("LEFT held this hard: ");
         Serial.println(ps2x.Analog(PSAB_PAD_LEFT), DEC);
+        turnLeft();
+        run = true;
     }
     if (ps2x.Button(PSB_PAD_DOWN)) {
         Serial.print("DOWN held this hard: ");
         Serial.println(ps2x.Analog(PSAB_PAD_DOWN), DEC);
+        reverseCar();
+        run = true;
     }
-
-    if (ps2x.NewButtonState()) { // Trả về giá trị TRUE khi nút được thay đổi trạng thái (bật sang tắt, or tắt sang bật)
-        if (ps2x.Button(PSB_L3))
-            Serial.println("L3 pressed");
-        if (ps2x.Button(PSB_R3))
-            Serial.println("R3 pressed");
-        if (ps2x.Button(PSB_L2))
-            Serial.println("L2 pressed");
-        if (ps2x.Button(PSB_R2))
-            Serial.println("R2 pressed");
-        if (ps2x.Button(PSB_TRIANGLE))
-            Serial.println("△ pressed");
-    }
-    //△□○×
-    if (ps2x.ButtonPressed(PSB_CIRCLE)) // Trả về giá trị TRUE khi nút được ấn (từ tắt sang bật)
-        Serial.println("○ just pressed");
-    if (ps2x.NewButtonState(PSB_CROSS)) // Trả về giá trị TRUE khi nút được thay đổi trạng thái
-        Serial.println("× just changed");
-    if (ps2x.ButtonReleased(PSB_SQUARE)) //  Trả về giá trị TRUE khi nút được ấn (từ tắt sang bật)
-        Serial.println("□ just released");
-
-    if (ps2x.Button(PSB_L1) || ps2x.Button(PSB_R1)) // các trả về giá trị TRUE khi nút được giữ
-    {                                               // Đọc giá trị 2 joystick khi nút L1 hoặc R1 được giữ
-        Serial.print("Stick Values:");
-        Serial.print(ps2x.Analog(PSS_LY)); // đọc trục Y của joystick bên trái. Other options: LX, RY, RX
-        Serial.print(",");
-        Serial.print(ps2x.Analog(PSS_LX), DEC);
-        Serial.print(",");
-        Serial.print(ps2x.Analog(PSS_RY), DEC);
-        Serial.print(",");
-        Serial.println(ps2x.Analog(PSS_RX), DEC);
+    if (!run) {
+        uint8_t x = ps2x.Analog(PSS_LX);
+        uint8_t y = ps2x.Analog(PSS_LY);
+        if (x == 0 && y == 0) {
+            stopCar();
+        } else {
+            runCar(x, y);
+        }
     }
     delay(50);
+}
+
+void runCar(uint8_t x, uint8_t y) {
+    leftFrontMotorControl.motorForward(0, x);
+    rightFrontMotorControl.motorForward(0, y);
+    leftRearMotorControl.motorForward(0, y);
+    rightRearMotorControl.motorForward(0, y);
 }
 
 void initPS2() {
@@ -140,35 +146,44 @@ void initPS2() {
 
 void initCar() {
     // write your initialization code here
-    pinMode(IN1_PIN, OUTPUT);
-    pinMode(IN2_PIN, OUTPUT);
-    pinMode(IN3_PIN, OUTPUT);
-    pinMode(IN4_PIN, OUTPUT);
-    pinMode(IN5_PIN, OUTPUT);
-    pinMode(IN6_PIN, OUTPUT);
-    pinMode(IN7_PIN, OUTPUT);
-    pinMode(IN8_PIN, OUTPUT);
+    leftFrontMotorControl.attachMotor(IN1_PIN, IN2_PIN);
+    rightFrontMotorControl.attachMotor(IN3_PIN, IN4_PIN);
+    leftRearMotorControl.attachMotor(IN5_PIN, IN6_PIN);
+    rightRearMotorControl.attachMotor(IN7_PIN, IN8_PIN);
     stopCar();
 }
 
 void runCar() {
-    digitalWrite(IN1_PIN, LOW);
-    digitalWrite(IN2_PIN, HIGH);
-    digitalWrite(IN3_PIN, LOW);
-    digitalWrite(IN4_PIN, HIGH);
-    digitalWrite(IN5_PIN, LOW);
-    digitalWrite(IN6_PIN, HIGH);
-    digitalWrite(IN7_PIN, LOW);
-    digitalWrite(IN8_PIN, HIGH);
+    leftFrontMotorControl.motorForward(0, initialSpeed);
+    rightFrontMotorControl.motorForward(0, initialSpeed);
+    leftRearMotorControl.motorForward(0, initialSpeed);
+    rightRearMotorControl.motorForward(0, initialSpeed);
+}
+
+void turnLeft() {
+    leftFrontMotorControl.motorForward(0, turnSpeed);
+    rightFrontMotorControl.motorForward(0, initialSpeed);
+    leftRearMotorControl.motorForward(0, initialSpeed);
+    rightRearMotorControl.motorForward(0, initialSpeed);
+}
+
+void turnRight() {
+    leftFrontMotorControl.motorForward(0, initialSpeed);
+    rightFrontMotorControl.motorForward(0, turnSpeed);
+    leftRearMotorControl.motorForward(0, initialSpeed);
+    rightRearMotorControl.motorForward(0, initialSpeed);
+}
+
+void reverseCar() {
+    leftFrontMotorControl.motorReverse(0, initialSpeed);
+    rightFrontMotorControl.motorReverse(0, initialSpeed);
+    leftRearMotorControl.motorReverse(0, initialSpeed);
+    rightRearMotorControl.motorReverse(0, initialSpeed);
 }
 
 void stopCar() {
-    digitalWrite(IN1_PIN, HIGH);
-    digitalWrite(IN2_PIN, HIGH);
-    digitalWrite(IN3_PIN, HIGH);
-    digitalWrite(IN4_PIN, HIGH);
-    digitalWrite(IN5_PIN, HIGH);
-    digitalWrite(IN6_PIN, HIGH);
-    digitalWrite(IN7_PIN, HIGH);
-    digitalWrite(IN8_PIN, HIGH);
+    leftFrontMotorControl.motorStop(0);
+    rightFrontMotorControl.motorStop(0);
+    leftRearMotorControl.motorStop(0);
+    rightRearMotorControl.motorStop(0);
 }
