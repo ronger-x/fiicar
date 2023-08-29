@@ -2,7 +2,7 @@
 // #define PRO_SERVO_CONTROL
 #include <Arduino.h>
 #include <PS2X_lib.h>
-#include <ESP32MotorControl.h>
+#include <ESP32PWMControl.h>
 
 #define SERVICE_UUID "76ad7aaa-3782-11ed-a261-0242ac120002"
 
@@ -30,10 +30,10 @@
 #define  rockerPointX 128
 #define  rockerPointY 127
 
-ESP32MotorControl leftFrontMotorControl = ESP32MotorControl();
-ESP32MotorControl rightFrontMotorControl = ESP32MotorControl();
-ESP32MotorControl leftRearMotorControl = ESP32MotorControl();
-ESP32MotorControl rightRearMotorControl = ESP32MotorControl();
+ESP32PWMControl leftFrontPWMControl = ESP32PWMControl();
+ESP32PWMControl rightFrontPWMControl = ESP32PWMControl();
+ESP32PWMControl leftRearPWMControl = ESP32PWMControl();
+ESP32PWMControl rightRearPWMControl = ESP32PWMControl();
 PS2X ps2x; // khởi tạo class PS2x
 
 void runCar();
@@ -120,32 +120,60 @@ void runCar(uint8_t x, uint8_t y) {
     // 0-255
     uint8_t absX = abs(x - rockerPointX) * 200 / 255;
     uint8_t absY = abs(y - rockerPointY) * 200 / 255;
+    bool isReverse = false;
+    if (y > rockerPointY) {
+        isReverse = true;
+    }
     if (x < rockerPointX) {
         // 左转
-        leftFrontMotorControl.motorForward(0, absX);
-        rightFrontMotorControl.motorForward(0, absY);
-    } else if (x > 128) {
+        if (absY < turnSpeed) {
+            absY = turnSpeed;
+        }
+        if (isReverse) {
+            leftFrontPWMControl.motorReverse(0, 0, turnSpeed);
+            rightFrontPWMControl.motorReverse(0, 1, absY);
+        } else {
+            leftFrontPWMControl.motorReverse(0, 0, turnSpeed);
+            rightFrontPWMControl.motorForward(0, 1, absY);
+        }
+    } else if (x > rockerPointX) {
         // 右转
-        leftFrontMotorControl.motorForward(0, absY);
-        rightFrontMotorControl.motorForward(0, absX);
+        if (absY < turnSpeed) {
+            absY = turnSpeed;
+        }
+        if (isReverse) {
+            leftFrontPWMControl.motorReverse(0, 0, absY);
+            rightFrontPWMControl.motorReverse(0, 1, turnSpeed);
+        } else {
+            leftFrontPWMControl.motorForward(0,0, absY);
+            rightFrontPWMControl.motorReverse(0, 1, turnSpeed);
+        }
     } else {
         // 直行
-        leftFrontMotorControl.motorForward(0, absY);
-        rightFrontMotorControl.motorForward(0, absY);
+        if (isReverse) {
+            leftFrontPWMControl.motorReverse(0, 0, absY);
+            rightFrontPWMControl.motorReverse(0, 1, absY);
+        } else {
+            leftFrontPWMControl.motorForward(0, 0, absY);
+            rightFrontPWMControl.motorForward(0, 1, absY);
+        }
     }
 
     if (y < rockerPointY) {
         // 前进
-        leftRearMotorControl.motorForward(0, absY);
-        rightRearMotorControl.motorForward(0, absY);
+        leftRearPWMControl.motorForward(1, 0, absY);
+        rightRearPWMControl.motorForward(1, 1, absY);
     } else if (y > rockerPointY) {
         // 后退
-        leftRearMotorControl.motorReverse(0, absY);
-        rightRearMotorControl.motorReverse(0, absY);
+        leftRearPWMControl.motorReverse(1,0, absY);
+        rightRearPWMControl.motorReverse(1,1, absY);
     } else {
         // 前进
-        leftRearMotorControl.motorForward(0, absX);
-        rightRearMotorControl.motorForward(0, absX);
+        if (absX < turnSpeed) {
+            absX = turnSpeed;
+        }
+        leftRearPWMControl.motorForward(1,0, absX);
+        rightRearPWMControl.motorForward(1,1, absX);
     }
 }
 
@@ -180,44 +208,44 @@ void initPS2() {
 
 void initCar() {
     // write your initialization code here
-    leftFrontMotorControl.attachMotor(IN1_PIN, IN2_PIN);
-    rightFrontMotorControl.attachMotor(IN3_PIN, IN4_PIN);
-    leftRearMotorControl.attachMotor(IN5_PIN, IN6_PIN);
-    rightRearMotorControl.attachMotor(IN7_PIN, IN8_PIN);
+    leftFrontPWMControl.attachMotorInit(IN7_PIN, IN8_PIN, 0 , 0);
+    rightFrontPWMControl.attachMotorInit(IN5_PIN, IN6_PIN, 0, 1);
+    leftRearPWMControl.attachMotorInit(IN3_PIN, IN4_PIN, 1, 0);
+    rightRearPWMControl.attachMotorInit(IN1_PIN, IN2_PIN, 1, 1);
     stopCar();
 }
 
 void runCar() {
-    leftFrontMotorControl.motorForward(0, fullSpeed);
-    rightFrontMotorControl.motorForward(0, fullSpeed);
-    leftRearMotorControl.motorForward(0, fullSpeed);
-    rightRearMotorControl.motorForward(0, fullSpeed);
+    leftFrontPWMControl.motorForward(0, 0, fullSpeed);
+    rightFrontPWMControl.motorForward(0, 1, fullSpeed);
+    leftRearPWMControl.motorForward(1, 0, fullSpeed);
+    rightRearPWMControl.motorForward(1, 1, fullSpeed);
 }
 
 void turnLeft() {
-    leftFrontMotorControl.motorForward(0, turnSpeed);
-    rightFrontMotorControl.motorForward(0, fullSpeed);
-    leftRearMotorControl.motorForward(0, fullSpeed);
-    rightRearMotorControl.motorForward(0, fullSpeed);
+    leftFrontPWMControl.motorForward(0, 0, turnSpeed);
+    rightFrontPWMControl.motorForward(0, 1, fullSpeed);
+    leftRearPWMControl.motorForward(1, 0, fullSpeed);
+    rightRearPWMControl.motorForward(1, 1, fullSpeed);
 }
 
 void turnRight() {
-    leftFrontMotorControl.motorForward(0, fullSpeed);
-    rightFrontMotorControl.motorForward(0, turnSpeed);
-    leftRearMotorControl.motorForward(0, fullSpeed);
-    rightRearMotorControl.motorForward(0, fullSpeed);
+    leftFrontPWMControl.motorForward(0, 0, fullSpeed);
+    rightFrontPWMControl.motorForward(0, 1, turnSpeed);
+    leftRearPWMControl.motorForward(1, 0, fullSpeed);
+    rightRearPWMControl.motorForward(1, 1, fullSpeed);
 }
 
 void reverseCar() {
-    leftFrontMotorControl.motorReverse(0, fullSpeed);
-    rightFrontMotorControl.motorReverse(0, fullSpeed);
-    leftRearMotorControl.motorReverse(0, fullSpeed);
-    rightRearMotorControl.motorReverse(0, fullSpeed);
+    leftFrontPWMControl.motorReverse(0, 0, fullSpeed);
+    rightFrontPWMControl.motorReverse(0, 1, fullSpeed);
+    leftRearPWMControl.motorReverse(1, 0, fullSpeed);
+    rightRearPWMControl.motorReverse(1, 1, fullSpeed);
 }
 
 void stopCar() {
-    leftFrontMotorControl.motorStop(0);
-    rightFrontMotorControl.motorStop(0);
-    leftRearMotorControl.motorStop(0);
-    rightRearMotorControl.motorStop(0);
+    leftFrontPWMControl.motorStop(0, 0);
+    rightFrontPWMControl.motorStop(0, 1);
+    leftRearPWMControl.motorStop(1, 0);
+    rightRearPWMControl.motorStop(1, 1);
 }
