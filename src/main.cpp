@@ -126,26 +126,20 @@ void runCar(uint8_t x, uint8_t y) {
     }
     if (x < rockerPointX) {
         // 左转
-        if (absY < turnSpeed) {
-            absY = turnSpeed;
-        }
         if (isReverse) {
             leftFrontPWMControl.motorReverse(0, 0, turnSpeed);
-            rightFrontPWMControl.motorReverse(0, 1, absY);
+            rightFrontPWMControl.motorReverse(0, 1, fullSpeed);
         } else {
             leftFrontPWMControl.motorReverse(0, 0, turnSpeed);
-            rightFrontPWMControl.motorForward(0, 1, absY);
+            rightFrontPWMControl.motorForward(0, 1, fullSpeed);
         }
     } else if (x > rockerPointX) {
         // 右转
-        if (absY < turnSpeed) {
-            absY = turnSpeed;
-        }
         if (isReverse) {
-            leftFrontPWMControl.motorReverse(0, 0, absY);
+            leftFrontPWMControl.motorReverse(0, 0, fullSpeed);
             rightFrontPWMControl.motorReverse(0, 1, turnSpeed);
         } else {
-            leftFrontPWMControl.motorForward(0,0, absY);
+            leftFrontPWMControl.motorForward(0,0, fullSpeed);
             rightFrontPWMControl.motorReverse(0, 1, turnSpeed);
         }
     } else {
@@ -208,10 +202,10 @@ void initPS2() {
 
 void initCar() {
     // write your initialization code here
-    leftFrontPWMControl.attachMotorInit(IN7_PIN, IN8_PIN, 0 , 0);
-    rightFrontPWMControl.attachMotorInit(IN5_PIN, IN6_PIN, 0, 1);
-    leftRearPWMControl.attachMotorInit(IN3_PIN, IN4_PIN, 1, 0);
-    rightRearPWMControl.attachMotorInit(IN1_PIN, IN2_PIN, 1, 1);
+    leftFrontPWMControl.attachMotorInit(IN3_PIN, IN4_PIN, 0 , 0);
+    rightFrontPWMControl.attachMotorInit(IN1_PIN, IN2_PIN, 0, 1);
+    leftRearPWMControl.attachMotorInit(IN5_PIN, IN6_PIN, 1, 0);
+    rightRearPWMControl.attachMotorInit(IN7_PIN, IN8_PIN, 1, 1);
     stopCar();
 }
 
