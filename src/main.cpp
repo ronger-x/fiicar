@@ -23,8 +23,12 @@
 #define pressures false
 #define rumble false
 
-#define initialSpeed 100
+#define fullSpeed 100
 #define turnSpeed 50
+
+// 测试出自己手柄空置时的值
+#define  rockerPointX 128
+#define  rockerPointY 127
 
 ESP32MotorControl leftFrontMotorControl = ESP32MotorControl();
 ESP32MotorControl rightFrontMotorControl = ESP32MotorControl();
@@ -97,9 +101,13 @@ void loop() {
         run = true;
     }
     if (!run) {
+
+        Serial.println(ps2x.Analog(PSS_LX), DEC);
+        Serial.println(ps2x.Analog(PSS_LY), DEC);
         uint8_t x = ps2x.Analog(PSS_LX);
         uint8_t y = ps2x.Analog(PSS_LY);
-        if (x == 0 && y == 0) {
+        // 防抖动
+        if (abs(x - rockerPointX) < 5 && abs(y - rockerPointY) < 5) {
             stopCar();
         } else {
             runCar(x, y);
@@ -109,10 +117,36 @@ void loop() {
 }
 
 void runCar(uint8_t x, uint8_t y) {
-    leftFrontMotorControl.motorForward(0, x);
-    rightFrontMotorControl.motorForward(0, y);
-    leftRearMotorControl.motorForward(0, y);
-    rightRearMotorControl.motorForward(0, y);
+    // 0-255
+    uint8_t absX = abs(x - rockerPointX) * 200 / 255;
+    uint8_t absY = abs(y - rockerPointY) * 200 / 255;
+    if (x < rockerPointX) {
+        // 左转
+        leftFrontMotorControl.motorForward(0, absX);
+        rightFrontMotorControl.motorForward(0, absY);
+    } else if (x > 128) {
+        // 右转
+        leftFrontMotorControl.motorForward(0, absY);
+        rightFrontMotorControl.motorForward(0, absX);
+    } else {
+        // 直行
+        leftFrontMotorControl.motorForward(0, absY);
+        rightFrontMotorControl.motorForward(0, absY);
+    }
+
+    if (y < rockerPointY) {
+        // 前进
+        leftRearMotorControl.motorForward(0, absY);
+        rightRearMotorControl.motorForward(0, absY);
+    } else if (y > rockerPointY) {
+        // 后退
+        leftRearMotorControl.motorReverse(0, absY);
+        rightRearMotorControl.motorReverse(0, absY);
+    } else {
+        // 前进
+        leftRearMotorControl.motorForward(0, absX);
+        rightRearMotorControl.motorForward(0, absX);
+    }
 }
 
 void initPS2() {
@@ -154,31 +188,31 @@ void initCar() {
 }
 
 void runCar() {
-    leftFrontMotorControl.motorForward(0, initialSpeed);
-    rightFrontMotorControl.motorForward(0, initialSpeed);
-    leftRearMotorControl.motorForward(0, initialSpeed);
-    rightRearMotorControl.motorForward(0, initialSpeed);
+    leftFrontMotorControl.motorForward(0, fullSpeed);
+    rightFrontMotorControl.motorForward(0, fullSpeed);
+    leftRearMotorControl.motorForward(0, fullSpeed);
+    rightRearMotorControl.motorForward(0, fullSpeed);
 }
 
 void turnLeft() {
     leftFrontMotorControl.motorForward(0, turnSpeed);
-    rightFrontMotorControl.motorForward(0, initialSpeed);
-    leftRearMotorControl.motorForward(0, initialSpeed);
-    rightRearMotorControl.motorForward(0, initialSpeed);
+    rightFrontMotorControl.motorForward(0, fullSpeed);
+    leftRearMotorControl.motorForward(0, fullSpeed);
+    rightRearMotorControl.motorForward(0, fullSpeed);
 }
 
 void turnRight() {
-    leftFrontMotorControl.motorForward(0, initialSpeed);
+    leftFrontMotorControl.motorForward(0, fullSpeed);
     rightFrontMotorControl.motorForward(0, turnSpeed);
-    leftRearMotorControl.motorForward(0, initialSpeed);
-    rightRearMotorControl.motorForward(0, initialSpeed);
+    leftRearMotorControl.motorForward(0, fullSpeed);
+    rightRearMotorControl.motorForward(0, fullSpeed);
 }
 
 void reverseCar() {
-    leftFrontMotorControl.motorReverse(0, initialSpeed);
-    rightFrontMotorControl.motorReverse(0, initialSpeed);
-    leftRearMotorControl.motorReverse(0, initialSpeed);
-    rightRearMotorControl.motorReverse(0, initialSpeed);
+    leftFrontMotorControl.motorReverse(0, fullSpeed);
+    rightFrontMotorControl.motorReverse(0, fullSpeed);
+    leftRearMotorControl.motorReverse(0, fullSpeed);
+    rightRearMotorControl.motorReverse(0, fullSpeed);
 }
 
 void stopCar() {
